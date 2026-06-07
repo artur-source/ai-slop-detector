@@ -1,2 +1,248 @@
-<!-- Result template for displaying detector comparisons. -->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Detection Results</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 32px 16px;
+            background: #0f0f0f;
+            color: #f4f4f4;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 780px;
+            margin: 0 auto;
+        }
+
+        .card,
+        .result-panel,
+        .text-box {
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            background: #171717;
+        }
+
+        .card {
+            padding: 32px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        h1 {
+            margin: 0 0 24px;
+            font-size: clamp(2rem, 6vw, 3.25rem);
+            line-height: 1;
+            letter-spacing: 0;
+        }
+
+        h2 {
+            margin: 0 0 16px;
+            font-size: 1.1rem;
+            line-height: 1.3;
+        }
+
+        .text-box {
+            margin-bottom: 18px;
+            padding: 18px;
+            background: #101010;
+        }
+
+        .text-box p {
+            margin: 8px 0 0;
+            color: #d8d8d8;
+            line-height: 1.6;
+        }
+
+        .result-panel {
+            margin-top: 16px;
+            padding: 20px;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .label {
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+
+        .label-ai {
+            color: #ff6b6b;
+        }
+
+        .label-human {
+            color: #51cf66;
+        }
+
+        .score-number {
+            color: #b8b8b8;
+            font-size: 0.95rem;
+            white-space: nowrap;
+        }
+
+        .score-track {
+            width: 100%;
+            height: 12px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #2a2a2a;
+        }
+
+        .score-fill {
+            height: 100%;
+            border-radius: inherit;
+        }
+
+        .score-ai {
+            background: #ff6b6b;
+        }
+
+        .score-human {
+            background: #51cf66;
+        }
+
+        .reasoning,
+        .error {
+            margin: 14px 0 0;
+            line-height: 1.5;
+        }
+
+        .reasoning {
+            color: #d8d8d8;
+        }
+
+        .error {
+            color: #ffd43b;
+        }
+
+        .metadata {
+            margin: 22px 0;
+            padding: 0;
+            list-style: none;
+            color: #b8b8b8;
+            line-height: 1.8;
+        }
+
+        .metadata strong {
+            color: #f4f4f4;
+        }
+
+        .button-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 10px;
+            background: #f4f4f4;
+            color: #0f0f0f;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .button-link:hover {
+            background: #ffffff;
+        }
+
+        @media (max-width: 520px) {
+            body {
+                padding: 16px;
+            }
+
+            .card {
+                padding: 22px;
+            }
+
+            .result-header {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% set local = results.local %}
+    {% set openai = results.openai %}
+    {% set preview_truncated = input_preview|length >= 300 %}
+
+    <main class="page">
+        <section class="card" aria-labelledby="page-title">
+            <h1 id="page-title">Detection Results</h1>
+
+            <section class="text-box" aria-labelledby="text-analyzed-title">
+                <h2 id="text-analyzed-title">Text analyzed</h2>
+                <p>{{ input_preview }}{% if preview_truncated %}...{% endif %}</p>
+            </section>
+
+            <section class="result-panel" aria-labelledby="local-title">
+                <h2 id="local-title">Local Model (DistilBERT)</h2>
+                {% if local.error %}
+                    <p class="error">{{ local.error }}</p>
+                {% else %}
+                    {% set local_is_ai = local.label == 'AI' %}
+                    {% set local_width = (local.ai_probability * 100)|round(1) %}
+                    <div class="result-header">
+                        <span class="label {% if local_is_ai %}label-ai{% else %}label-human{% endif %}">
+                            {{ local.label }}
+                        </span>
+                        <span class="score-number">{{ local_width }}% AI</span>
+                    </div>
+                    <div class="score-track" aria-label="Local AI probability">
+                        <div
+                            class="score-fill {% if local_is_ai %}score-ai{% else %}score-human{% endif %}"
+                            style="width: {{ local_width }}%;"
+                        ></div>
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="result-panel" aria-labelledby="openai-title">
+                <h2 id="openai-title">OpenAI API (gpt-4o-mini)</h2>
+                {% if openai.error %}
+                    <p class="error">{{ openai.error }} Configure OPENAI_API_KEY in your .env file to enable this comparison.</p>
+                {% else %}
+                    {% set openai_is_ai = openai.label == 'AI' %}
+                    {% set openai_width = (openai.score * 100)|round(1) %}
+                    <div class="result-header">
+                        <span class="label {% if openai_is_ai %}label-ai{% else %}label-human{% endif %}">
+                            {{ openai.label }}
+                        </span>
+                        <span class="score-number">{{ openai_width }}% {{ openai.label }}</span>
+                    </div>
+                    <div class="score-track" aria-label="OpenAI confidence score">
+                        <div
+                            class="score-fill {% if openai_is_ai %}score-ai{% else %}score-human{% endif %}"
+                            style="width: {{ openai_width }}%;"
+                        ></div>
+                    </div>
+                    <p class="reasoning"><strong>Reasoning:</strong> {{ openai.reasoning }}</p>
+                {% endif %}
+            </section>
+
+            <ul class="metadata">
+                <li><strong>Source:</strong> {% if source == 'url' %}URL{% else %}Direct text{% endif %}</li>
+                <li><strong>Text length:</strong> {{ results.text_length }} characters</li>
+                <li><strong>Truncated:</strong> {% if results.truncated %}Yes{% else %}No{% endif %}</li>
+            </ul>
+
+            <a class="button-link" href="{{ url_for('main.index') }}">Analyze another text</a>
+        </section>
+    </main>
+</body>
+</html>
 
